@@ -1,0 +1,865 @@
+# PG Management Software — User Flows & Page Flows
+
+---
+
+## Part 1: Admin-Tenant Relationship & Permission Matrix
+
+### User Roles
+
+#### **Role 1: Admin (PG Owner / Receptionist)**
+
+- Full control over PG data
+- Can create, edit, delete tenant records
+- Can assign/reassign rooms
+- Can mark payments, generate receipts
+- Can upload and verify documents
+- Can view all reports and history
+
+#### **Role 2: Tenant (Future v2)**
+
+- View own profile (name, room, rent due)
+- View own payment history
+- Submit complaints (v2)
+- Cannot edit admin data
+- Cannot see other tenants' data
+
+**Note**: v1 = Admin only. Tenant features deferred to v2.
+
+---
+
+### Permission Matrix (v1)
+
+| ACTION                      | ADMIN | TENANT | GUEST |
+| --------------------------- | ----- | ------ | ----- |
+| Create tenant               | ✅    | ❌     | ❌    |
+| Edit tenant details         | ✅    | ❌     | ❌    |
+| Delete tenant               | ✅    | ❌     | ❌    |
+| View all tenants            | ✅    | ❌     | ❌    |
+| View own profile            | ✅    | ✅*    | ❌    |
+| Assign room                 | ✅    | ❌     | ❌    |
+| View room occupancy         | ✅    | ❌     | ❌    |
+| Mark payment received       | ✅    | ❌     | ❌    |
+| View payment history (all)  | ✅    | ❌     | ❌    |
+| View payment history (own)  | ✅    | ✅*    | ❌    |
+| Generate receipt            | ✅    | ❌     | ❌    |
+| Upload documents            | ✅    | ❌     | ❌    |
+| View documents              | ✅    | ✅*    | ❌    |
+| View dashboard              | ✅    | ❌     | ❌    |
+| Export reports              | ✅    | ❌     | ❌    |
+
+**\* = v2 feature; not in v1**
+
+---
+
+### Admin Workflows vs Tenant Workflows
+
+#### **Admin Workflow (Daily)**
+
+```
+LOGIN
+  ↓
+DASHBOARD (check metrics: occupancy, pending, overdue)
+  ↓
+DECISION TREE:
+  ├─ New tenant arriving? → Go to "Add Tenant" flow
+  ├─ Tenant paid? → Go to "Mark Payment" flow
+  ├─ Room vacant? → Go to "Reassign Room" flow
+  ├─ Need receipt? → Go to "Generate Receipt" flow
+  └─ Check history? → Go to "Payment Log" flow
+```
+
+#### **Tenant Workflow (v2)**
+
+```
+LOGIN
+  ↓
+DASHBOARD (view own rent due, payment history)
+  ↓
+DECISION:
+  ├─ View rent status? → View own payment status
+  ├─ Submit complaint? → Complaint form (v2)
+  └─ Update contact? → Edit own profile (v2)
+```
+
+---
+
+## Part 2: Detailed Page Flows
+
+### **PAGE 1: LOGIN / SIGNUP**
+
+```
+ENTRY POINT: /auth
+
+┌─────────────────────────────────────┐
+│     PG Management Software          │
+│                                     │
+│  Email: [____________]              │
+│  Password: [____________]           │
+│                                     │
+│  [LOGIN BUTTON]                     │
+│                                     │
+│  Don't have account? [SIGN UP]      │
+└─────────────────────────────────────┘
+
+LOGIC:
+  - New user clicks "SIGN UP"
+    → Route to /auth/signup
+    → Enter email + password + PG name
+    → Validate email (no duplicates)
+    → Create account → Auto-login → Redirect to /dashboard
+    
+  - Existing user clicks "LOGIN"
+    → Enter email + password
+    → Validate credentials
+    → Success → Redirect to /dashboard
+    → Failure → Show error message + retry
+
+STATE AFTER LOGIN:
+  - User object: { id, email, pg_name, role: 'admin' }
+  - Auth token stored in localStorage
+  - All subsequent requests include token
+```
+
+---
+
+### **PAGE 2: DASHBOARD**
+
+```
+ENTRY POINT: /dashboard (after login)
+
+┌──────────────────────────────────────────────────────┐
+│ PG Management | Dashboard                [PROFILE] [LOGOUT] │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  📊 KEY METRICS SUMMARY                             │
+│  ┌────────────────────────────────────────────────┐│
+│  │ Occupancy Rate        │ Pending Payments      ││
+│  │ 18/20 beds (90%)      │ ₹12,000 (3 tenants)   ││
+│  │                       │                       ││
+│  │ [View Rooms]          │ [View Payments]       ││
+│  └────────────────────────────────────────────────┘│
+│                                                      │
+│  📅 UPCOMING DUE DATES (Next 7 days)                │
+│  ┌────────────────────────────────────────────────┐│
+│  │ Raj Kumar (Room 101) - Due Sept 5 - ₹8,000     ││
+│  │ Priya Singh (Room 205) - Due Sept 3 - ₹7,500   ││
+│  │ [View Full Calendar]                           ││
+│  └────────────────────────────────────────────────┘│
+│                                                      │
+│  🔴 OVERDUE ALERTS                                  │
+│  ┌────────────────────────────────────────────────┐│
+│  │ 2 payments overdue by 5+ days                  ││
+│  │ Amit Patel (Room 301) - 10 days overdue        ││
+│  │ [View Overdue List]                            ││
+│  └────────────────────────────────────────────────┘│
+│                                                      │
+│  🚀 QUICK ACTIONS                                   │
+│  ┌────────────────────────────────────────────────┐│
+│  │ [+ Add Tenant]  [📋 View Rooms]  [💰 Payments] ││
+│  └────────────────────────────────────────────────┘│
+│                                                      │
+│  📊 SIDEBAR NAVIGATION                              │
+│  • Dashboard (current)                              │
+│  • Room List                                        │
+│  • Tenant Profiles                                  │
+│  • Payment Tracking                                 │
+│  • History & Reports                                │
+│  • Settings                                         │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+STATE:
+  - Displays aggregate metrics (real-time)
+  - Each metric card clickable → drill-down page
+  - Overdue count refreshes every 5 seconds
+  - Quick action buttons link to main flows
+
+DATA FETCHED:
+  - GET /api/dashboard/metrics → occupancy, pending, overdue counts
+  - GET /api/dashboard/upcoming → next 7 due dates
+  - GET /api/dashboard/overdue → all overdue payments
+```
+
+---
+
+### **PAGE 3: ROOM LIST**
+
+```
+ENTRY POINT: /rooms (from Dashboard or Navbar)
+
+┌──────────────────────────────────────────────────────┐
+│ PG Management | Room List          [SEARCH] [FILTER] │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  [+ ADD ROOM] [BULK IMPORT]                         │
+│                                                      │
+│  ROOM INVENTORY TABLE                               │
+│  ┌─────────────────────────────────────────────────┐│
+│  │ Room │ Floor │ Type   │ Bed │ Occupant  │ Rent  ││
+│  ├─────────────────────────────────────────────────┤│
+│  │ 101  │ 1     │Single  │ 1   │ Raj Kumar │ ₹8k   ││
+│  │      │       │        │ 2   │ [VACANT] │ ₹8k   ││
+│  │──────────────────────────────────────────────────│
+│  │ 201  │ 2     │Double  │ 1   │ Priya S. │ ₹7.5k ││
+│  │      │       │        │ 2   │ Neha P.  │ ₹7.5k ││
+│  │──────────────────────────────────────────────────│
+│  │ 301  │ 3     │Dorm    │ 1   │ Amit P.  │ ₹6k   ││
+│  │      │       │        │ 2   │ [VACANT] │ ₹6k   ││
+│  │      │       │        │ 3   │ [VACANT] │ ₹6k   ││
+│  └─────────────────────────────────────────────────┘│
+│                                                      │
+│  LEGEND                                             │
+│  🟢 VACANT  🔴 OCCUPIED  🟡 MAINTENANCE             │
+│                                                      │
+│  ACTIONS (on each room):                            │
+│  • Click room → View details → Assign tenant        │
+│  • Right-click → Mark vacant / Mark maintenance     │
+│  • View occupant payment history                    │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+FLOW: Admin wants to assign a new tenant to vacant bed in Room 301
+  1. Admin clicks Room 301
+  2. Modal opens: "Assign Tenant"
+     → Dropdown: Select tenant (from all unassigned)
+     → Select bed (Bed 1, 2, or 3)
+     → Click [ASSIGN]
+  3. System updates:
+     - Room 301 Bed 1 status → "occupied"
+     - Linked to tenant_id
+     - Occupancy % updates on dashboard
+  4. Admin can now mark rent due date & amount
+
+STATE:
+  - Room list cached; updates on assign/vacancy
+  - Color coding: real-time occupancy status
+  - Each row expandable to show bed-level detail
+
+DATA:
+  - GET /api/rooms → all rooms + bed details
+  - POST /api/rooms/{id}/assign → link tenant to bed
+  - PATCH /api/rooms/{id}/status → mark vacant/maintenance
+```
+
+---
+
+### **PAGE 4: TENANT PROFILES**
+
+```
+ENTRY POINT: /tenants (from Navbar or Dashboard)
+
+┌──────────────────────────────────────────────────────┐
+│ PG Management | Tenant Profiles    [SEARCH] [FILTER] │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  [+ ADD NEW TENANT]                                 │
+│                                                      │
+│  TENANT LIST TABLE                                  │
+│  ┌─────────────────────────────────────────────────┐│
+│  │ Name      │ Room │ Phone      │ Status   │ Dues ││
+│  ├─────────────────────────────────────────────────┤│
+│  │ Raj Kumar │ 101  │ 9876543210 │ Active   │ 0    ││
+│  │ Priya S.  │ 201  │ 9123456789 │ Active   │ 0    ││
+│  │ Neha P.   │ 201  │ 8765432109 │ Active   │ ₹7.5k││
+│  │ Amit P.   │ 301  │ 9988776655 │ Active   │ ₹12k ││
+│  │ Vikas D.  │ --   │ 9111222333 │ Vacated  │ --   ││
+│  └─────────────────────────────────────────────────┘│
+│                                                      │
+│  CLICK TENANT → VIEW PROFILE                        │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+FLOW 1: Add New Tenant
+┌─────────────────────────────────────────────────────┐
+│ ADD NEW TENANT FORM                                 │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│ PERSONAL INFO                                       │
+│ Full Name: [____________________]                  │
+│ Phone: [_____________]                             │
+│ Email: [_____________________]                     │
+│                                                     │
+│ GOVERNMENT ID                                       │
+│ ID Type: [Aadhar ▼]                                │
+│ ID Number: [____________________]                  │
+│ ID Proof: [UPLOAD IMAGE/PDF]                       │
+│                                                     │
+│ ROOM ASSIGNMENT                                    │
+│ Room: [Select Room ▼]                              │
+│ Move-in Date: [DATE PICKER]                        │
+│ Expected Move-out: [DATE PICKER] (optional)        │
+│                                                     │
+│ EMERGENCY CONTACT                                  │
+│ Name: [____________________]                       │
+│ Phone: [_____________]                             │
+│                                                     │
+│ [SAVE] [CANCEL]                                    │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+
+VALIDATION:
+  - Phone must be 10 digits
+  - Email must be valid
+  - ID proof must be uploaded (PDF or JPG)
+  - Room must be available (not double-book)
+  - Move-in date cannot be in past
+
+ON SAVE:
+  - System creates tenant record
+  - Links to room
+  - Auto-generates first rent due date (move-in + 30 days)
+  - Redirects to tenant profile page
+
+FLOW 2: View Tenant Profile
+┌─────────────────────────────────────────────────────┐
+│ TENANT: Raj Kumar                  [EDIT] [DELETE]  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│ BASIC INFO                                          │
+│ Phone: 9876543210 | Email: raj@example.com         │
+│ Status: Active | Move-in: Aug 15, 2024             │
+│ Room: 101 (Single) | Assigned bed: 1               │
+│                                                     │
+│ GOVERNMENT ID                                       │
+│ Type: Aadhar | Number: 1234-5678-9012              │
+│ Proof: [VIEW/DOWNLOAD]                             │
+│                                                     │
+│ RENT & PAYMENT SUMMARY                              │
+│ Rent: ₹8,000/month                                 │
+│ Next Due: Sept 5, 2024                             │
+│ Status: PAID (Aug 5)                               │
+│ [VIEW FULL PAYMENT HISTORY]                         │
+│                                                     │
+│ DOCUMENTS                                           │
+│ • Aadhar Proof [View] [Delete]                     │
+│ • Rental Agreement [View] [Delete]                 │
+│ [+ UPLOAD NEW]                                     │
+│                                                     │
+│ ACTIONS                                             │
+│ [EDIT PROFILE] [MARK VACANT] [DELETE]              │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+
+STATE:
+  - Tenant data cached; updates on edit/delete
+  - Payment status auto-calculated (due date vs today)
+  - Documents linked to tenant ID
+
+DATA:
+  - POST /api/tenants → create
+  - GET /api/tenants/{id} → view profile
+  - PATCH /api/tenants/{id} → edit
+  - DELETE /api/tenants/{id} → mark vacated
+  - POST /api/tenants/{id}/documents → upload doc
+```
+
+---
+
+### **PAGE 5: PAYMENT TRACKING**
+
+```
+ENTRY POINT: /payments (from Navbar or Dashboard)
+
+┌──────────────────────────────────────────────────────┐
+│ PG Management | Payment Tracking  [FILTER] [EXPORT]  │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  FILTER OPTIONS                                     │
+│  Status: [All ▼] | Tenant: [All ▼] | Month: [All ▼]│
+│                                                      │
+│  PAYMENT LIST TABLE                                 │
+│  ┌─────────────────────────────────────────────────┐│
+│  │ Tenant    │ Room │ Amount │ Due Date │ Status  ││
+│  ├─────────────────────────────────────────────────┤│
+│  │ Raj Kumar │ 101  │ ₹8k    │ Sept 5   │ ✅ PAID ││
+│  │ Priya S.  │ 201  │ ₹7.5k  │ Sept 3   │ ✅ PAID ││
+│  │ Neha P.   │ 201  │ ₹7.5k  │ Sept 3   │ ⏳ PEND ││
+│  │ Amit P.   │ 301  │ ₹6k    │ Aug 25   │ 🔴 OVER ││
+│  │ Vikas D.  │ --   │ ₹6k    │ Aug 20   │ 🔴 OVER ││
+│  └─────────────────────────────────────────────────┘│
+│                                                      │
+│  [+ MARK PAYMENT]                                   │
+│                                                      │
+│  SUMMARY                                            │
+│  Total Expected: ₹44.5k | Collected: ₹30.5k        │
+│  Pending: ₹7.5k | Overdue: ₹12k                     │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+FLOW: Admin marks a payment as received
+┌──────────────────────────────────────────────────────┐
+│ MARK PAYMENT RECEIVED (for Amit Patel, Room 301)    │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│ Tenant: Amit Patel                                   │
+│ Amount: ₹6,000                                       │
+│ Due Date: Aug 25                                     │
+│                                                      │
+│ Payment Details:                                     │
+│ Date Received: [DATE PICKER] → Auto-fill: today     │
+│ Mode: [Cash ▼] / UPI / Bank Transfer               │
+│ Reference: [Optional UPI ID or Txn ID]             │
+│ Notes: [Optional]                                   │
+│                                                      │
+│ [SAVE & GENERATE RECEIPT]                           │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+ON SAVE:
+  - Payment record updated: status → "paid"
+  - payment_date → filled
+  - payment_mode → recorded
+  - Receipt auto-generated (see Receipt flow below)
+  - Admin can print/share receipt
+
+FLOW: View Payment History (detailed log)
+┌──────────────────────────────────────────────────────┐
+│ PAYMENT HISTORY: Amit Patel (Room 301)               │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│ Month │ Amount │ Due Date │ Paid Date │ Mode │ Rcpt │
+├──────────────────────────────────────────────────────┤
+│ Aug   │ ₹6k    │ Aug 25   │ Aug 28    │ Cash │ #001 │
+│ July  │ ₹6k    │ July 25  │ July 24   │ UPI  │ #001 │
+│ June  │ ₹6k    │ June 25  │ June 26   │ Bank │ #001 │
+│                                                      │
+│ TOTAL COLLECTED: ₹18k (3 months)                     │
+│ AVERAGE DELAY: 1.67 days                            │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+STATE:
+  - Payment list updates in real-time
+  - Filter by status (paid/pending/overdue)
+  - Overdue = due date < today
+
+DATA:
+  - GET /api/payments → all payments
+  - POST /api/payments/{id}/mark-paid → update status
+  - GET /api/payments/{tenant_id}/history → payment log
+```
+
+---
+
+### **PAGE 6: GENERATE RECEIPT**
+
+```
+ENTRY POINT: After marking payment OR from Payment History
+
+┌──────────────────────────────────────────────────────┐
+│              RENT PAYMENT RECEIPT                     │
+│                                                      │
+│  My PG Name                    Receipt #: 001        │
+│  Address: [PG Address]         Date: Sept 1, 2024    │
+│                                                      │
+│  BILL TO:                                            │
+│  Name: Raj Kumar                                     │
+│  Room: 101                                           │
+│  Phone: 9876543210                                  │
+│                                                      │
+│  ─────────────────────────────────────────────────  │
+│  DESCRIPTION              AMOUNT                     │
+│  ─────────────────────────────────────────────────  │
+│  Rent for August 2024     ₹8,000                    │
+│                                                      │
+│  TOTAL:                   ₹8,000                    │
+│  ─────────────────────────────────────────────────  │
+│                                                      │
+│  PAYMENT MODE: Cash                                  │
+│  PAID ON: Aug 5, 2024                               │
+│  RECEIVED BY: Admin Name                             │
+│                                                      │
+│  Thank you for prompt payment!                       │
+│                                                      │
+│  [PRINT] [EMAIL] [DOWNLOAD PDF] [SHARE]             │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+ACTIONS:
+  - Print: Opens print dialog
+  - Email: Sends to tenant (v2 feature, manual for now)
+  - Download PDF: Saves locally
+  - Share: Generates shareable link (v2)
+
+STATE:
+  - Receipt is immutable (for audit)
+  - Receipt number auto-incremented
+  - Linked to payment record (cannot be deleted without audit trail)
+
+DATA:
+  - GET /api/receipts/{id} → fetch receipt
+  - POST /api/receipts/{payment_id}/download → PDF generation
+```
+
+---
+
+### **PAGE 7: HISTORY & REPORTS**
+
+```
+ENTRY POINT: /history (from Navbar)
+
+┌──────────────────────────────────────────────────────┐
+│ PG Management | History & Reports     [EXPORT] [PRINT]│
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  FILTER                                             │
+│  Report Type: [Payment Log ▼] | Date Range: [____]  │
+│                                                      │
+│  PAYMENT LOG (searchable, filterable)               │
+│  ┌─────────────────────────────────────────────────┐│
+│  │ Date    │ Tenant     │ Amount │ Mode  │ Status  ││
+│  ├─────────────────────────────────────────────────┤│
+│  │ 1-Sep   │ Raj Kumar  │ ₹8k    │ Cash  │ ✅ OK   ││
+│  │ 1-Sep   │ Priya S.   │ ₹7.5k  │ UPI   │ ✅ OK   ││
+│  │ 28-Aug  │ Amit P.    │ ₹6k    │ Bank  │ ✅ OK   ││
+│  │ 20-Aug  │ Vikas D.   │ ₹6k    │ Cash  │ ✅ OK   ││
+│  │ ...     │ ...        │ ...    │ ...   │ ...     ││
+│  └─────────────────────────────────────────────────┘│
+│                                                      │
+│  MONTHLY SUMMARY (aggregated)                       │
+│  ┌─────────────────────────────────────────────────┐│
+│  │ Month   │ Expected │ Collected │ % Complete    ││
+│  ├─────────────────────────────────────────────────┤│
+│  │ August  │ ₹44.5k   │ ₹44.5k    │ 100%          ││
+│  │ July    │ ₹44.5k   │ ₹44.5k    │ 100%          ││
+│  │ June    │ ₹44.5k   │ ₹42k      │ 94%           ││
+│  └─────────────────────────────────────────────────┘│
+│                                                      │
+│  [EXPORT TO CSV]  [PRINT REPORT]                    │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+TENANT MOVEMENT LOG (v2)
+┌─────────────────────────────────────────────────────┐│
+│ Date     │ Tenant      │ Room  │ Action      │ Notes││
+├─────────────────────────────────────────────────────┤│
+│ 1-Aug    │ Raj Kumar   │ 101   │ Check-in    │ --   ││
+│ 10-Aug   │ Vikas D.    │ 301   │ Check-out   │ --   ││
+│ 15-Aug   │ Priya S.    │ 201   │ Check-in    │ --   ││
+│ 20-Aug   │ Neha P.     │ 201   │ Check-in    │ --   ││
+└─────────────────────────────────────────────────────┘│
+
+DATA:
+  - GET /api/reports/payment-log → transaction history
+  - GET /api/reports/monthly-summary → aggregated metrics
+  - GET /api/reports/tenant-movement → check-in/out log (v2)
+  - POST /api/reports/export → CSV download
+```
+
+---
+
+### **PAGE 8: PROFILE & SETTINGS**
+
+```
+ENTRY POINT: /settings (from Navbar or profile icon)
+
+┌──────────────────────────────────────────────────────┐
+│ PG Management | Settings                             │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  ADMIN PROFILE                                      │
+│  ┌─────────────────────────────────────────────────┐│
+│  │ Email: admin@pg.com                             ││
+│  │ PG Name: My PG                                  ││
+│  │ [EDIT PROFILE]                                  ││
+│  └─────────────────────────────────────────────────┘│
+│                                                      │
+│  ACCOUNT SETTINGS                                   │
+│  ┌─────────────────────────────────────────────────┐│
+│  │ Change Password: [CHANGE]                       ││
+│  │ Two-Factor Auth: [ENABLE] (v2)                  ││
+│  │ Delete Account: [DELETE] (with confirmation)    ││
+│  └─────────────────────────────────────────────────┘│
+│                                                      │
+│  [LOGOUT]                                            │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+FLOW: Change Password
+┌─────────────────────────────────────────────────────┐
+│ CHANGE PASSWORD                                     │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│ Current Password: [_______________]                │
+│ New Password: [_______________]                    │
+│ Confirm Password: [_______________]                │
+│                                                     │
+│ [SAVE] [CANCEL]                                    │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+
+DATA:
+  - GET /api/auth/profile → admin details
+  - PATCH /api/auth/profile → update profile
+  - POST /api/auth/change-password → update password
+  - POST /api/auth/logout → end session
+```
+
+---
+
+## Part 3: State Diagrams for Key Workflows
+
+### **Workflow 1: Tenant Lifecycle**
+
+```
+┌─────────────┐
+│   NEW PG    │
+│  (No data)  │
+└──────┬──────┘
+       │
+       ▼ Admin creates tenant record
+┌─────────────────────┐
+│ TENANT_CREATED      │
+│ (Room assigned)     │
+│ Status: ACTIVE      │
+└──────┬──────────────┘
+       │
+       ├─ Move-in date today? → Check-in flow (v2)
+       │
+       ├─ Rent due in 30 days → Payment tracking
+       │
+       ├─ Admin marks vacant?
+       │  └──▶ Status: VACATED
+       │       └──▶ Room reverts to AVAILABLE
+       │
+       └─ Tenant reports issue?
+          └──▶ Complaint created (v2)
+
+KEY STATE TRANSITIONS:
+ACTIVE → NOTICE_PERIOD (admin marks) → VACATED
+  └─ Only admin can change status
+  └─ Immutable history kept
+```
+
+---
+
+### **Workflow 2: Payment Lifecycle**
+
+```
+RENT CREATED (auto on tenant creation + 30 days)
+  │
+  │ Monthly cycle repeats
+  │
+  ▼
+┌──────────────────────┐
+│ DUE (30 days prior)  │
+│ Status: PENDING      │
+│ Amount: ₹X           │
+│ Due Date: Sept 5     │
+└──────────┬───────────┘
+           │
+           ├─ Due date passes?
+           │  └──▶ Status: OVERDUE (dashboard flags)
+           │
+           ├─ Admin marks "PAID"?
+           │  │
+           │  ▼
+           │  ┌──────────────────┐
+           │  │ Status: PAID      │
+           │  │ Receipt generated │
+           │  │ Date recorded     │
+           │  └──────────────────┘
+           │
+           └─ Dispute?
+              └──▶ Payment marked DISPUTED (v2)
+                  └──▶ Admin review required
+
+KEY RULES:
+- Once marked PAID, cannot revert (audit trail)
+- Overdue = today > due_date
+- Auto-calculate next month's rent due date
+```
+
+---
+
+### **Workflow 3: Document Upload & Verification**
+
+```
+ADMIN INITIATES TENANT CREATION
+  │
+  ├─ Selects ID Type (Aadhar/PAN/DL)
+  │
+  ▼
+┌────────────────────┐
+│ UPLOAD_REQUIRED    │
+│ (ID Proof needed)  │
+└────────┬───────────┘
+         │
+         ├─ Admin selects file (PDF/JPG)
+         │  └──▶ File validation (size < 5MB)
+         │
+         ▼
+┌────────────────────────────┐
+│ DOCUMENT_UPLOADED          │
+│ Status: PENDING_VERIFICATION
+│ URL: storage/proof_xyz.pdf │
+└────────────┬───────────────┘
+             │
+             ├─ Admin verifies manually
+             │  └──▶ Status: VERIFIED
+             │       └──▶ Tenant profile complete
+             │
+             └─ Admin rejects (corrupted file)?
+                └──▶ Status: REJECTED
+                    └──▶ Re-upload required
+
+KEY RULES:
+- No document = tenant cannot be finalized
+- Encrypted storage
+- Immutable after verification (for audit)
+```
+
+---
+
+## Part 4: Navigation & User Journey Map
+
+```
+                     ┌─────────────────┐
+                     │  [LOGIN/SIGNUP] │
+                     └────────┬────────┘
+                              │
+                              ▼
+                     ┌─────────────────┐
+                     │   DASHBOARD     │ ◀──────┐
+                     │  (Entry point)  │        │
+                     └────────┬────────┘        │
+                              │                 │
+                ┌─────────────┼─────────────┐   │
+                │             │             │   │
+                ▼             ▼             ▼   │
+          ┌──────────┐ ┌──────────┐ ┌──────────┐│
+          │ ROOM     │ │ TENANT   │ │ PAYMENTS ││
+          │ LIST     │ │PROFILES  │ │ TRACKING ││
+          └────┬─────┘ └────┬─────┘ └────┬─────┘│
+               │             │            │      │
+               ├──────────────┴────────────┤      │
+               │                          │      │
+               ▼                          ▼      │
+          ┌──────────────────┐   ┌──────────────┐│
+          │ ASSIGN TENANT    │   │ MARK PAYMENT ││
+          │ (to vacant bed)  │   │ & RECEIPT    ││
+          └──────────────────┘   └──────────────┘│
+                                                  │
+               ┌────────────────────────────────┘
+               │
+               ▼
+          ┌──────────────┐
+          │   HISTORY    │
+          │  & REPORTS   │
+          └──────────────┘
+               │
+               ▼
+          ┌──────────────┐
+          │ SETTINGS &   │
+          │  LOGOUT      │
+          └──────────────┘
+```
+
+---
+
+## Part 5: Admin-Tenant Relationship (Access Control)
+
+### **Current State (v1): Admin-Only**
+
+```
+┌─────────┐
+│  ADMIN  │
+│ (v1)    │
+└────┬────┘
+     │
+     ├─ Full read/write access
+     ├─ Can modify all data
+     ├─ Can delete records
+     └─ Can generate reports
+
+┌─────────┐
+│ TENANT  │
+│ (v2)    │
+└────┬────┘
+     │
+     ├─ Read-only own profile
+     ├─ Read own payment history
+     ├─ Cannot modify any data (v1)
+     └─ Cannot see other tenants
+```
+
+### **Future State (v2): Tenant Portal**
+
+```
+Tenant Flow:
+  1. Tenant receives invite link from Admin
+  2. Signs up with email
+  3. Views own rent due & payment history
+  4. Submits complaints
+  5. Admin approves/resolves (v2)
+
+Admin Flow (unchanged):
+  1. Manages all tenant + room + payment data
+  2. Sends invites to tenants
+  3. Reviews tenant submissions
+  4. Generates reports
+```
+
+---
+
+## Part 6: Data Flow Diagram
+
+```
+                         ┌────────────────────┐
+                         │   ADMIN LOGIN      │
+                         └────────┬───────────┘
+                                  │
+                    ┌─────────────▼──────────────┐
+                    │   SESSION / AUTH TOKEN    │
+                    │   (stored in localStorage)│
+                    └─────────────┬──────────────┘
+                                  │
+           ┌──────────────────────┼──────────────────────┐
+           │                      │                      │
+           ▼                      ▼                      ▼
+    ┌────────────────┐   ┌────────────────┐   ┌────────────────┐
+    │   TENANT DATA  │   │   ROOM DATA    │   │ PAYMENT DATA   │
+    ├────────────────┤   ├────────────────┤   ├────────────────┤
+    │ • Name         │   │ • Room ID      │   │ • Tenant ID    │
+    │ • Phone        │   │ • Beds         │   │ • Amount       │
+    │ • Email        │   │ • Occupancy    │   │ • Due Date     │
+    │ • ID Proof     │   │ • Rent Amount  │   │ • Status       │
+    │ • Room (FK)    │   │ • Status       │   │ • Payment Date │
+    │ • Move-in Date │   │ • Tenant (FK)  │   │ • Mode         │
+    └────────────────┘   └────────────────┘   └────────────────┘
+           │                      │                      │
+           └──────────────────────┼──────────────────────┘
+                                  │
+                    ┌─────────────▼──────────────┐
+                    │   DATABASE                 │
+                    │ (PostgreSQL / Supabase)   │
+                    └─────────────┬──────────────┘
+                                  │
+                    ┌─────────────▼──────────────┐
+                    │   FRONTEND DISPLAYS        │
+                    │ • Dashboard (aggregates)   │
+                    │ • Lists (tables)           │
+                    │ • Forms (input)            │
+                    │ • Reports (exports)        │
+                    └────────────────────────────┘
+```
+
+---
+
+## Summary: Quick Reference
+
+| Page         | Entry Point | Key Actions | State |
+| ------------ | ----------- | ----------- | ----- |
+| **Login**    | /auth       | Login, Signup | Auth token |
+| **Dashboard** | /dashboard  | View metrics, Quick actions | Aggregated data |
+| **Rooms**    | /rooms      | View list, Assign tenant, Mark vacant | Room inventory |
+| **Tenants**  | /tenants    | Add tenant, Edit, Upload docs | Tenant records |
+| **Payments** | /payments   | Mark paid, Filter, View history | Payment status |
+| **Receipt**  | /receipts   | View, Print, Download PDF | Immutable record |
+| **History**  | /history    | Search log, Filter, Export CSV | Transaction log |
+| **Settings** | /settings   | Edit profile, Change password | Admin account |
+
+---
+
+**Ready to code?** Hand this to your AI agent + PRD.md → builds your MVP in 1-2 months.
+
