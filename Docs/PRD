@@ -597,6 +597,77 @@ DATA:
 
 ---
 
+### **PAGE 9: PUBLIC MARKETING LANDING PAGE (FRONT-END ONLY)**
+
+```
+ENTRY POINT: /
+
+PURPOSE:
+  Present PG Management as a simple, trustworthy product for PG owners
+  and guide visitors toward Login or Sign up.
+
+PAGE STRUCTURE:
+  - Header: brand logo, Features, How it works, Contact, Log in, Get started
+  - Hero: product promise, supporting copy, primary and secondary CTAs
+  - Product preview: visual dashboard mockup showing occupancy, collections,
+    and follow-ups
+  - Feature cards:
+      • One clear overview
+      • Simpler room management
+      • Payments that stay clear
+  - How-it-works section:
+      01 Add residents → 02 Assign beds → 03 Collect rent
+  - Footer: logo and short product statement
+
+FRONT-END SCOPE ONLY:
+  - CTA buttons may navigate to the existing Login / Sign up screens.
+  - Marketing navigation may scroll to sections on the same page.
+  - No pricing calculation, lead capture, email submission, analytics,
+    account creation, or API behavior is defined here.
+```
+
+---
+
+### **PAGE 10: TENANT / USER DASHBOARD (FRONT-END MOCKUP)**
+
+```
+ENTRY POINT: /user-dashboard
+
+PURPOSE:
+  Show a tenant-facing view of their stay, rent, payment history,
+  and documents. This is a visual front-end concept only.
+
+PAGE STRUCTURE:
+  - Simple header: PG Management logo, resident name, avatar
+  - Welcome heading: “Welcome back, Raj.”
+  - Next rent payment card:
+      • Amount
+      • Due date
+      • Pending status badge
+      • View payment details CTA
+  - Your room card:
+      • Room number
+      • Room type and bed number
+      • Active status badge
+  - Payment history card:
+      • Recent rent payments
+      • Date, amount, and Paid status
+  - My documents card:
+      • Document names
+      • Verified status badges
+      • Need help? CTA
+
+FRONT-END SCOPE ONLY:
+  - Content is static presentation data for the design.
+  - No tenant authentication, invite flow, payment processing,
+    document download, complaint submission, profile editing,
+    or access-control behavior is defined here.
+  - Future tenant functionality remains part of v2 and can use this
+    screen as the visual starting point.
+```
+
+---
+
 ## Part 3: State Diagrams for Key Workflows
 
 ### **Workflow 1: Tenant Lifecycle**
@@ -862,4 +933,3 @@ Admin Flow (unchanged):
 ---
 
 **Ready to code?** Hand this to your AI agent + PRD.md → builds your MVP in 1-2 months.
-
