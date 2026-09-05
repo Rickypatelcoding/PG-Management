@@ -425,19 +425,11 @@ function Empty({ icon = "inbox", title, copyText, action }) {
     </div>
   );
 }
-function Toast({ message, close }) {
+function Toast({ message }) {
   if (!message) return null;
   return (
-    <div className="fixed bottom-5 right-5 z-[60] flex max-w-sm items-start gap-3 rounded-lg border border-[#e6e6e6] border-l-4 border-l-[#16a34a] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,.12)]">
-      <span className="text-[#15803d]">{material("check_circle")}</span>
-      <p className="text-sm font-medium">{message}</p>
-      <button
-        onClick={close}
-        className="focusable ml-2 text-[#575757]"
-        aria-label="Dismiss"
-      >
-        {material("close", "text-lg")}
-      </button>
+    <div role="status" aria-live="polite" className="toast-enter toast-responsive fixed bottom-5 right-5 z-[60] flex max-w-sm items-center rounded-lg border-2 border-success-600 bg-success-300 text-success-700  px-4 py-3.5 shadow-[0_8px_24px_rgba(0,0,0,.12)]">
+      <p className="min-w-0 flex-1 text-sm font-medium leading-5">{message}</p>
     </div>
   );
 }
@@ -463,7 +455,7 @@ function Header({ eyebrow, title, description, children }) {
 }
 function Toolbar({ search, setSearch, placeholder = "Search...", children }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="mb-5 flex flex-col gap-3 rounded-lg border border-[#f5f5f5] bg-[#fafafa] p-3 md:flex-row md:items-center md:justify-between">
       <div className="relative min-w-0 flex-1 md:max-w-sm">
         {material(
           "search",
@@ -484,4 +476,3 @@ function Toolbar({ search, setSearch, placeholder = "Search...", children }) {
 
 
 export { TODAY, STORAGE_KEY, initialData, copy, money, formatDate, initials, material, addDays, nextDueDate, currentDate, monthlySummary, ensureNextRentCycles, normalizeData, readData, useNavigation, Input, Select, Field, Modal, Empty, Toast, Header, Toolbar, Logo, Button, Badge };
-
