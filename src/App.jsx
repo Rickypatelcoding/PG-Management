@@ -9,6 +9,8 @@ import Receipt from "./pages/Receipt";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
+import Landing from "./pages/Landing";
+import UserDashboard from "./pages/UserDashboard";
 
 export default function App() {
   const [path, navigate] = useNavigation();
@@ -44,16 +46,19 @@ export default function App() {
       session,
       profile: profile ? { ...next.profile, ...profile } : next.profile,
     }));
-  const auth = path.startsWith("/auth");
+  const pathname = path.split("?")[0];
+  const auth = pathname.startsWith("/auth");
+  const publicPage = pathname === "/" || pathname === "/user-dashboard";
   useEffect(() => {
-    if (!data.session && !auth) navigate("/auth");
+    if (!data.session && !auth && !publicPage) navigate("/auth");
     if (data.session && auth) navigate("/dashboard");
   }, [data.session, auth, navigate]);
+  if (publicPage && pathname === "/") return <Landing navigate={navigate} />;
+  if (publicPage && pathname === "/user-dashboard") return <UserDashboard data={data} navigate={navigate} />;
   if (!data.session || auth)
     return <Auth navigate={navigate} setSession={setSession} />;
-  const pathname = path.split("?")[0];
   let page;
-  if (pathname === "/" || pathname === "/dashboard")
+  if (pathname === "/dashboard" || pathname === "/academy-admin/dashboard")
     page = <Dashboard data={data} navigate={navigate} />;
   else if (pathname === "/rooms")
     page = (
@@ -93,7 +98,7 @@ export default function App() {
     );
   else if (pathname === "/history")
     page = <History data={data} navigate={navigate} notify={notify} />;
-  else if (pathname === "/settings")
+  else if (pathname === "/settings" || pathname === "/academy-admin/settings")
     page = (
       <Settings data={data} update={update} logout={logout} notify={notify} />
     );
@@ -124,4 +129,3 @@ export default function App() {
     </>
   );
 }
-

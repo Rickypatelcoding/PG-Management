@@ -21,7 +21,8 @@ function Auth({ navigate, setSession }) {
       { email: form.email, role: "admin" },
       signup ? { email: form.email, pgName: form.pgName || "My PG" } : null,
     );
-    navigate("/dashboard");
+    const next = new URLSearchParams(window.location.search).get("next");
+    navigate(next && next.startsWith("/") ? next : "/dashboard");
   };
   return (
     <div className="flex min-h-screen items-center justify-center bg-white p-4">
